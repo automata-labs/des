@@ -13,3 +13,6 @@ proposal logic into it's own contract and allows for a more flexible-
 and upgradeable system. For example, a multi-choice proposal could be
 supported without additional changes to the core contracts by adding
 the ERC721 as an approve contract.
+
+`des` is released under "The MIT License (MIT)" license.
+Copyright (c) 2021 Automata Labs Inc.
