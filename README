@@ -1,18 +1,24 @@
 des
 
 `des` (DAO Execution System) is a DAO contract-set that tokenizes
-proposals into `ERC721` tokens and allows for arbitrary execution in the
-from an admin contract.
+proposals into `ERC721` tokens and allows for arbitrary execution from
+an admin contract.
 
-The `Runtime` contract can both execute transcation batches and
-deploy contracts using the `create` and `create2` opcodes. All
-transactions also include a message that is emitted as an event.
+The `Runtime` contract can execute both transcation batches and
+contracts deployments using the `create` and `create2` opcodes. Every
+transaction batch also includes a message that is emitted as an event
+when executed.
 
-Each proposal is an ERC721 token which effectively also factors out the
-proposal logic into it's own contract and allows for a more flexible-
-and upgradeable system. For example, a multi-choice proposal could be
-supported without additional changes to the core contracts by adding
-the ERC721 as an approve contract.
+By abstracting proposals into `ERC721` tokens, the logic is also
+factored out from the controller/governor/registry contract and enables
+upgradeability for more expressive proposal formats if desired (for
+example, a multi-choice proposal).
+
+Proposals start out as `draft`s and can then be staged by the owner or
+accounts with nft approval. When staged, anyone with enough token votes
+can `open` the proposal for voting. We believe the proposal lifecycle
+and staging/unstaging methodology should improve the feedback process
+between the proposer(s) and the DAO members/participants.
 
 `des` is released under "The MIT License (MIT)" license.
 Copyright (c) 2021 Automata Labs Inc.
