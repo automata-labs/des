@@ -92,7 +92,7 @@ interface IProposer {
     function attests(uint256 tokenId, address account) external view returns (uint256);
 
     /// @notice The function to update contract parameters.
-    function set(bytes32 selector, bytes memory data) external;
+    function set(bytes4 selector, bytes memory data) external;
 
     /// @notice The next nft token id.
     function next() external view returns (uint256);
