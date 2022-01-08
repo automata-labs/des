@@ -6,7 +6,7 @@ import "./libraries/Firewall.sol";
 import "./libraries/Revert.sol";
 
 /// @title Runtime
-/// @notice Executes transactions and contract deployments for a DAO.
+/// @notice Executes transactions and deploys contracts for the DAO.
 contract Runtime is IRuntime, Firewall {
     /// @inheritdoc IRuntime
     function predict(bytes32 bytecodehash, bytes32 salt) external view returns (address) {
