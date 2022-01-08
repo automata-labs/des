@@ -93,7 +93,7 @@ contract Proposer is ERC721Permit {
     /// @dev The next minted token id.
     uint256 private _nextId = 0;
     /// @dev The mapping from token id to proposal.
-    mapping(uint256 => Proposal) public _proposals;
+    mapping(uint256 => Proposal) public proposals;
     /// @dev The mapping of total amount of attests for each address.
     mapping(uint256 => mapping(address => uint256)) public attests;
 
@@ -125,48 +125,48 @@ contract Proposer is ERC721Permit {
         return _nextId;
     }
 
-    function proposals(uint256 tokenId) external view returns (Proposal memory) {
-        return _proposals[tokenId];
+    function proposal(uint256 tokenId) external view returns (Proposal memory) {
+        return proposals[tokenId];
     }
 
     function maturity(uint256 tokenId) public view returns (uint32) {
-        return _proposals[tokenId].finality + ttl;
+        return proposals[tokenId].finality + ttl;
     }
 
     function expiry(uint256 tokenId) public view returns (uint32) {
-        return _proposals[tokenId].finality + ttl + lifespan;
+        return proposals[tokenId].finality + ttl + lifespan;
     }
 
     function status(uint256 tokenId) public view returns (Status) {
-        if (_proposals[tokenId].merged)
+        if (proposals[tokenId].merged)
             return Status.Merged;
 
-        if (_proposals[tokenId].closed)
+        if (proposals[tokenId].closed)
             return Status.Closed;
 
-        if (_proposals[tokenId].start == 0) {
-            if (_proposals[tokenId].staged) {
+        if (proposals[tokenId].start == 0) {
+            if (proposals[tokenId].staged) {
                 return Status.Staged;
             } else {
                 return Status.Draft;
             }
         }
 
-        if (_blockNumber() < _proposals[tokenId].start)
+        if (_blockNumber() < proposals[tokenId].start)
             return Status.Pending;
 
-        if (_blockNumber() < _proposals[tokenId].end)
+        if (_blockNumber() < proposals[tokenId].end)
             return Status.Open;
 
-        if (_blockNumber() < _proposals[tokenId].trial)
+        if (_blockNumber() < proposals[tokenId].trial)
             return Status.Contesting;
 
-        if (_blockNumber() < _proposals[tokenId].finality)
+        if (_blockNumber() < proposals[tokenId].finality)
             return Status.Validation;
 
         if (
-            _proposals[tokenId].ack > _proposals[tokenId].nack &&
-            _proposals[tokenId].ack > quorum
+            proposals[tokenId].ack > proposals[tokenId].nack &&
+            proposals[tokenId].ack > quorum
         ) {
             if (_blockNumber() < maturity(tokenId)) {
                 return Status.Queued;
@@ -188,13 +188,13 @@ contract Proposer is ERC721Permit {
     function stage(uint256 tokenId) external {
         require(_isApprovedOrOwner(msg.sender, tokenId), "Unauthorized");
         require(status(tokenId) == Status.Draft, "NotDraft");
-        _proposals[tokenId].staged = true;
+        proposals[tokenId].staged = true;
     }
 
     function unstage(uint256 tokenId) external {
         require(_isApprovedOrOwner(msg.sender, tokenId), "Unauthorized");
         require(status(tokenId) == Status.Staged, "NotStaged");
-        _proposals[tokenId].staged = false;
+        proposals[tokenId].staged = false;
     }
 
     function open(uint256 tokenId) external {
@@ -204,10 +204,10 @@ contract Proposer is ERC721Permit {
             require(status(tokenId) == Status.Staged, "NotStaged");
 
         require(IAttest(token).weightOf(msg.sender) >= threshold, "Insufficient");
-        _proposals[tokenId].start = uint32(block.number) + delay;
-        _proposals[tokenId].end = _proposals[tokenId].start + period;
-        _proposals[tokenId].trial = _proposals[tokenId].end;
-        _proposals[tokenId].finality = _proposals[tokenId].end + window;
+        proposals[tokenId].start = uint32(block.number) + delay;
+        proposals[tokenId].end = proposals[tokenId].start + period;
+        proposals[tokenId].trial = proposals[tokenId].end;
+        proposals[tokenId].finality = proposals[tokenId].end + window;
     }
 
     function close(uint256 tokenId) external {
@@ -217,13 +217,13 @@ contract Proposer is ERC721Permit {
             status(tokenId) != Status.Merged,
             "StatusMismatch"
         );
-        _proposals[tokenId].closed = true;
+        proposals[tokenId].closed = true;
     }
 
     function done(uint256 tokenId) external {
         require(msg.sender == runtime, "Unauthorized");
         require(status(tokenId) == Status.Approved, "NotApproved");
-        _proposals[tokenId].merged = true;
+        proposals[tokenId].merged = true;
     }
 
     function attest(
@@ -235,7 +235,7 @@ contract Proposer is ERC721Permit {
         if (!_exists(tokenId))
             revert UndefinedId(tokenId);
 
-        Proposal storage proposal = _proposals[tokenId];
+        Proposal storage proposal_ = proposals[tokenId];
         Status status_ = status(tokenId);
 
         if (status_ == Status.Open) {
@@ -243,7 +243,7 @@ contract Proposer is ERC721Permit {
                 revert InvalidChoice(support);
             }
         } else if (status_ == Status.Contesting) {
-            if (proposal.side) {
+            if (proposal_.side) {
                 if (support != 1 && support != 2) {
                     revert InvalidChoice(support);
                 }
@@ -256,16 +256,16 @@ contract Proposer is ERC721Permit {
             revert StatusError(status_);
         }
 
-        uint160 weight = IAttest(token).weightIn(msg.sender, proposal.start).u160();
+        uint160 weight = IAttest(token).weightIn(msg.sender, proposal_.start).u160();
 
         if (amount > weight - attests[tokenId][msg.sender])
             revert AttestOverflow();
 
         if (support == 0)
-            proposal.ack += amount;
+            proposal_.ack += amount;
 
         if (support == 1)
-            proposal.nack += amount;
+            proposal_.nack += amount;
         
         attests[tokenId][msg.sender] += amount;
 
@@ -276,15 +276,15 @@ contract Proposer is ERC721Permit {
         if (status(tokenId) != Status.Validation)
             revert StatusError(status(tokenId));
 
-        if (_proposals[tokenId].side && _proposals[tokenId].ack > _proposals[tokenId].nack)
+        if (proposals[tokenId].side && proposals[tokenId].ack > proposals[tokenId].nack)
             revert ContestationFailed();
 
-        if (!_proposals[tokenId].side && _proposals[tokenId].nack > _proposals[tokenId].ack)
+        if (!proposals[tokenId].side && proposals[tokenId].nack > proposals[tokenId].ack)
             revert ContestationFailed();
 
-        _proposals[tokenId].trial = _blockNumber() + extension;
-        _proposals[tokenId].finality = _proposals[tokenId].trial + window;
-        _proposals[tokenId].side = !_proposals[tokenId].side;
+        proposals[tokenId].trial = _blockNumber() + extension;
+        proposals[tokenId].finality = proposals[tokenId].trial + window;
+        proposals[tokenId].side = !proposals[tokenId].side;
     }
 
     function commit(uint256 tokenId, Header.Data calldata header) external {
@@ -294,11 +294,11 @@ contract Proposer is ERC721Permit {
 
     function _commit(uint256 tokenId, Header.Data calldata header) internal {
         require(status(tokenId) == Status.Draft, "NotDraft");
-        _proposals[tokenId].hash = header.hash();
+        proposals[tokenId].hash = header.hash();
     }
 
     function _getAndIncrementNonce(uint256 tokenId) internal override returns (uint256) {
-        return uint256(_proposals[tokenId].nonce++);
+        return uint256(proposals[tokenId].nonce++);
     }
 
     function _blockNumber() internal view returns (uint32) {
