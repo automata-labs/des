@@ -297,15 +297,18 @@ contract Proposer is IProposer, ERC721Permit {
         _commit(tokenId, header);
     }
 
+    /// @dev Internal commit function.
     function _commit(uint256 tokenId, Header.Data calldata header) internal {
         require(status(tokenId) == Status.Draft, "NotDraft");
         proposals[tokenId].hash = header.hash();
     }
 
+    /// @dev Increments a proposal nonce used for `ERC721Permit`.
     function _getAndIncrementNonce(uint256 tokenId) internal override returns (uint256) {
         return uint256(proposals[tokenId].nonce++);
     }
 
+    /// @dev Returns a `uint32` casted `block.number`.
     function _blockNumber() internal view returns (uint32) {
         return uint32(block.number);
     }
