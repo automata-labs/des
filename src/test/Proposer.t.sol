@@ -8,11 +8,21 @@ import "../libraries/Status.sol";
 import "../Attest.sol";
 import "../Proposer.sol";
 import "../Runtime.sol";
+import "./mocks/Target.sol";
 import "./mocks/Vm.sol";
 
 contract User {}
 
 contract ProposerTest is DSTest, Vm {
+    using Header for Header.Data;
+
+    event Commit(
+        address indexed sender,
+        uint256 indexed tokenId,
+        bytes32[] hash,
+        Header.Data header
+    );
+
     User public user0;
     User public user1;
 
@@ -376,5 +386,57 @@ contract ProposerTest is DSTest, Vm {
 
         expectRevert(abi.encodeWithSignature("AttestOverflow()"));
         proposer.attest(tokenId, 0, 1, "");
+    }
+
+    /**
+     * `commit`
+     */
+
+    function testCommit() public {
+        Target target = new Target();
+        uint256 tokenId = setUpEmptyProposal(address(this));
+
+        Transaction.Data[] memory transactions = new Transaction.Data[](2);
+        Header.Data memory header = Header.Data({
+            data: transactions,
+            title: "Update the target value",
+            description: "This proposal updates the target value."
+        });
+
+        address[] memory targets_ = new address[](1);
+        uint256[] memory values_ = new uint256[](1);
+        string[] memory signatures_ = new string[](1);
+        bytes[] memory datas_ = new bytes[](1);
+        targets_[0] = address(target);
+        values_[0] = 0;
+        signatures_[0] = "update(uint256)";
+        datas_[0] = abi.encode(1337);
+        transactions[0] = Transaction.Data({
+            targets: targets_,
+            values: values_,
+            signatures: signatures_,
+            datas: datas_,
+            message: "tweak: update target value 1337"
+        });
+
+        address[] memory targets__ = new address[](1);
+        uint256[] memory values__ = new uint256[](1);
+        string[] memory signatures__ = new string[](1);
+        bytes[] memory datas__ = new bytes[](1);
+        targets__[0] = address(target);
+        values__[0] = 0;
+        signatures__[0] = "update(uint256)";
+        datas__[0] = abi.encode(42);
+        transactions[1] = Transaction.Data({
+            targets: targets__,
+            values: values__,
+            signatures: signatures__,
+            datas: datas__,
+            message: "tweak: update target value to 42"
+        });
+
+        expectEmit(true, true, true, true);
+        emit Commit(address(this), tokenId, header.hash(), header);
+        proposer.commit(tokenId, header);
     }
 }

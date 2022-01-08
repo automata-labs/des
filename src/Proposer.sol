@@ -33,14 +33,6 @@ contract Proposer is IProposer, ERC721Permit {
     error UndefinedId(uint256 tokenId);
     error UndefinedSelector(bytes4 selector);
 
-    event Attest(
-        address indexed sender,
-        uint256 indexed tokenId,
-        uint8 support,
-        uint256 amount,
-        string comment
-    );
-
     /// @inheritdoc IProposer
     address public immutable runtime;
     /// @inheritdoc IProposer
@@ -192,6 +184,8 @@ contract Proposer is IProposer, ERC721Permit {
         require(_isApprovedOrOwner(msg.sender, tokenId), "Unauthorized");
         require(status(tokenId) == Status.Draft, "NotDraft");
         proposals[tokenId].staged = true;
+
+        emit Stage(msg.sender, tokenId);
     }
 
     /// @inheritdoc IProposer
@@ -199,6 +193,8 @@ contract Proposer is IProposer, ERC721Permit {
         require(_isApprovedOrOwner(msg.sender, tokenId), "Unauthorized");
         require(status(tokenId) == Status.Staged, "NotStaged");
         proposals[tokenId].staged = false;
+
+        emit Unstage(msg.sender, tokenId);
     }
 
     /// @inheritdoc IProposer
@@ -213,6 +209,14 @@ contract Proposer is IProposer, ERC721Permit {
         proposals[tokenId].end = proposals[tokenId].start + period;
         proposals[tokenId].trial = proposals[tokenId].end;
         proposals[tokenId].finality = proposals[tokenId].end + window;
+
+        emit Open(
+            msg.sender,
+            tokenId,
+            proposals[tokenId].start,
+            proposals[tokenId].end,
+            proposals[tokenId].finality
+        );
     }
 
     /// @inheritdoc IProposer
@@ -224,6 +228,8 @@ contract Proposer is IProposer, ERC721Permit {
             "StatusMismatch"
         );
         proposals[tokenId].closed = true;
+
+        emit Close(msg.sender, tokenId);
     }
 
     /// @inheritdoc IProposer
@@ -231,6 +237,8 @@ contract Proposer is IProposer, ERC721Permit {
         require(msg.sender == runtime, "Unauthorized");
         require(status(tokenId) == Status.Approved, "NotApproved");
         proposals[tokenId].merged = true;
+
+        emit Merge(tokenId);
     }
 
     /// @inheritdoc IProposer
@@ -289,6 +297,14 @@ contract Proposer is IProposer, ERC721Permit {
         proposals[tokenId].trial = _blockNumber() + extension;
         proposals[tokenId].finality = proposals[tokenId].trial + window;
         proposals[tokenId].side = !proposals[tokenId].side;
+
+        emit Contest(
+            msg.sender,
+            tokenId,
+            proposals[tokenId].trial,
+            proposals[tokenId].finality,
+            proposals[tokenId].side
+        );
     }
 
     /// @inheritdoc IProposer
@@ -301,6 +317,8 @@ contract Proposer is IProposer, ERC721Permit {
     function _commit(uint256 tokenId, Header.Data calldata header) internal {
         require(status(tokenId) == Status.Draft, "NotDraft");
         proposals[tokenId].hash = header.hash();
+
+        emit Commit(msg.sender, tokenId, proposals[tokenId].hash, header);
     }
 
     /// @dev Increments a proposal nonce used for `ERC721Permit`.

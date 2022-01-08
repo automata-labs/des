@@ -52,6 +52,9 @@ interface IVm {
     /// @dev Tells the evm to expect that the next call reverts with specified error bytes.
     function expectRevert(bytes calldata expectedError) external;
 
+    /// @dev Expects the next emitted event. Params check topic 1, topic 2, topic 3 and data are the same.
+    function expectEmit(bool x, bool y, bool z, bool w) external;
+
     /**
      * Extensions
      */
@@ -133,6 +136,11 @@ contract Vm is IVm {
     /// @inheritdoc IVm
     function expectRevert(bytes memory expectedError) public {
         vm.expectRevert(expectedError);
+    }
+
+    /// @inheritdoc IVm
+    function expectEmit(bool x, bool y, bool z, bool w) public {
+        vm.expectEmit(x, y, z, w);
     }
 
     /// @inheritdoc IVm
