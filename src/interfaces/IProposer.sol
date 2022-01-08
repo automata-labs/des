@@ -37,6 +37,53 @@ struct Proposal {
 }
 
 interface IProposer {
+    /// @notice Emitted when a proposal is attested.
+    event Attest(
+        address indexed sender,
+        uint256 indexed tokenId,
+        uint8 support,
+        uint256 amount,
+        string comment
+    );
+
+    /// @notice Emitted when a proposal is closed.
+    event Close(address indexed sender, uint256 indexed tokenId);
+
+    /// @notice Emitted when a proposal hash is created/committed.
+    event Commit(
+        address indexed sender,
+        uint256 indexed tokenId,
+        bytes32[] hash,
+        Header.Data header
+    );
+
+    /// @notice Emitted when a proposal hash is contested.
+    event Contest(
+        address indexed sender,
+        uint256 indexed tokenId,
+        uint32 trial,
+        uint32 finality,
+        bool side
+    );
+
+    /// @notice Emitted when a proposal is merged.
+    event Merge(uint256 indexed tokenId);
+
+    /// @notice Emitted when a proposal is opened.
+    event Open(
+        address indexed sender,
+        uint256 indexed tokenId,
+        uint32 start,
+        uint32 end,
+        uint32 finality
+    );
+
+    /// @notice Emitted when a proposal is staged.
+    event Stage(address indexed sender, uint256 indexed tokenId);
+
+    /// @notice Emitted when a proposal is unstaged.
+    event Unstage(address indexed sender, uint256 indexed tokenId);
+
     /// @notice Returns the immutable runtime.
     function runtime() external view returns (address);
 
