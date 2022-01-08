@@ -25,12 +25,13 @@ contract Proposer is IProposer, ERC721Permit {
     using Cast for uint256;
     using Header for Header.Data;
 
+    error AttestOverflow();
+    error ContestationFailed();
+    error InvalidCheckpoint(uint256 index);
+    error InvalidChoice(uint8 choice);
     error StatusError(Status status);
     error UndefinedId(uint256 tokenId);
-    error InvalidCheckpoint(uint256 index);
-    error AttestOverflow();
-    error InvalidChoice(uint8 choice);
-    error ContestationFailed();
+    error UndefinedSelector(bytes4 selector);
 
     event Attest(
         address indexed sender,
@@ -85,13 +86,25 @@ contract Proposer is IProposer, ERC721Permit {
     }
 
     /// @inheritdoc IProposer
-    function set(bytes32 selector, bytes memory data) external {
-        if (selector == "threshold")
+    function set(bytes4 selector, bytes memory data) external {
+        if (selector == IProposer.threshold.selector)
             threshold = abi.decode(data, (uint128));
-        else if (selector == "quorum")
+        else if (selector == IProposer.threshold.selector)
             quorum = abi.decode(data, (uint128));
+        else if (selector == IProposer.delay.selector)
+            delay = abi.decode(data, (uint32));
+        else if (selector == IProposer.period.selector)
+            period = abi.decode(data, (uint32));
+        else if (selector == IProposer.window.selector)
+            window = abi.decode(data, (uint32));
+        else if (selector == IProposer.extension.selector)
+            extension = abi.decode(data, (uint32));
+        else if (selector == IProposer.ttl.selector)
+            ttl = abi.decode(data, (uint32));
+        else if (selector == IProposer.lifespan.selector)
+            lifespan = abi.decode(data, (uint32));
         else
-            revert("Undefined");
+            revert UndefinedSelector(selector);
     }
 
     /// @inheritdoc IProposer
