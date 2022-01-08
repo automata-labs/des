@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "./interfaces/IProposer.sol";
 import "./libraries/Cast.sol";
 import "./libraries/Checkpoint.sol";
 import "./libraries/ERC721Permit.sol";
@@ -18,7 +19,9 @@ interface IAttest {
     ) external view returns (uint160, uint32, uint32);
 }
 
-contract Proposer is ERC721Permit {
+/// @title Proposer
+/// @notice Tokenizes proposals as ERC721.
+contract Proposer is IProposer, ERC721Permit {
     using Cast for uint256;
     using Header for Header.Data;
 
@@ -36,65 +39,34 @@ contract Proposer is ERC721Permit {
         uint256 amount,
         string comment
     );
-    
-    struct Proposal {
-        /// @dev The header hash.
-        bytes32[] hash;
 
-        /// @dev the nonce for permits
-        uint96 nonce;
-        /// @dev The block when voting starts.
-        uint32 start;
-        /// @dev The block when two-sided voting ends.
-        uint32 end;
-        /// @dev The block when one-sided voting ends.
-        uint32 trial;
-        /// @dev The block when voting ends.
-        uint32 finality;
-        /// @dev A boolean that controls the one-sided voting.
-        ///     - `true`: only `nack` or `pass`
-        ///     - `false`: only `ack` or `pass`
-        bool side;
-        /// @dev If the request is staged.
-        bool staged;
-        /// @dev The force close variable.
-        bool closed;
-        /// @dev The force close variable.
-        bool merged;
-
-        /// @dev Votes for merging the transaction.
-        uint128 ack;
-        /// @dev Votes against merging the transaction.
-        uint128 nack;
-    }
-
-    /// @dev The runtime.
+    /// @inheritdoc IProposer
     address public immutable runtime;
-    /// @dev The token used for attesting.
+    /// @inheritdoc IProposer
     address public immutable token;
-    /// @dev The minimum amount of token delegations required to `open` a tx.
+    /// @inheritdoc IProposer
     uint128 public threshold;
-    /// @dev The minimum amount of `ack` required for a request to be valid.
+    /// @inheritdoc IProposer
     uint128 public quorum;
 
-    /// @dev The amount of blocks until a tx goes from draft to open.
+    /// @inheritdoc IProposer
     uint32 public delay;
-    /// @dev The amount of blocks that a tx is open.
+    /// @inheritdoc IProposer
     uint32 public period;
-    /// @dev The amount of blocks that a tx can be contested.
+    /// @inheritdoc IProposer
     uint32 public window;
-    /// @dev The amount of blocks that a tx is extended by when contested.
+    /// @inheritdoc IProposer
     uint32 public extension;
-    /// @dev The amount of blocks until a tx can be executed.
+    /// @inheritdoc IProposer
     uint32 public ttl;
-    /// @dev The amount of blocks until a tx goes stale.
+    /// @inheritdoc IProposer
     uint32 public lifespan;
 
     /// @dev The next minted token id.
     uint256 private _nextId = 0;
-    /// @dev The mapping from token id to proposal.
+    /// @inheritdoc IProposer
     mapping(uint256 => Proposal) public proposals;
-    /// @dev The mapping of total amount of attests for each address.
+    /// @inheritdoc IProposer
     mapping(uint256 => mapping(address => uint256)) public attests;
 
     constructor(address runtime_, address token_) ERC721Permit(
@@ -112,6 +84,7 @@ contract Proposer is ERC721Permit {
         lifespan = 80640; // 14 days until expiry (when accepted)
     }
 
+    /// @inheritdoc IProposer
     function set(bytes32 selector, bytes memory data) external {
         if (selector == "threshold")
             threshold = abi.decode(data, (uint128));
@@ -121,22 +94,37 @@ contract Proposer is ERC721Permit {
             revert("Undefined");
     }
 
+    /// @inheritdoc IProposer
     function next() external view returns (uint256) {
         return _nextId;
     }
 
+    /// @inheritdoc IProposer
+    function hash(uint256 tokenId, uint256 index) external view returns (bytes32) {
+        return proposals[tokenId].hash[index];
+    }
+
+    /// @inheritdoc IProposer
+    function hashes(uint256 tokenId) external view returns (bytes32[] memory) {
+        return proposals[tokenId].hash;
+    }
+
+    /// @inheritdoc IProposer
     function proposal(uint256 tokenId) external view returns (Proposal memory) {
         return proposals[tokenId];
     }
 
+    /// @inheritdoc IProposer
     function maturity(uint256 tokenId) public view returns (uint32) {
         return proposals[tokenId].finality + ttl;
     }
 
+    /// @inheritdoc IProposer
     function expiry(uint256 tokenId) public view returns (uint32) {
         return proposals[tokenId].finality + ttl + lifespan;
     }
 
+    /// @inheritdoc IProposer
     function status(uint256 tokenId) public view returns (Status) {
         if (proposals[tokenId].merged)
             return Status.Merged;
@@ -180,23 +168,27 @@ contract Proposer is ERC721Permit {
         return Status.Closed;            
     }
 
+    /// @inheritdoc IProposer
     function mint(address to, Header.Data calldata header) external returns (uint256 tokenId) {
         _mint(to, (tokenId = _nextId++));
         _commit(tokenId, header);
     }
 
+    /// @inheritdoc IProposer
     function stage(uint256 tokenId) external {
         require(_isApprovedOrOwner(msg.sender, tokenId), "Unauthorized");
         require(status(tokenId) == Status.Draft, "NotDraft");
         proposals[tokenId].staged = true;
     }
 
+    /// @inheritdoc IProposer
     function unstage(uint256 tokenId) external {
         require(_isApprovedOrOwner(msg.sender, tokenId), "Unauthorized");
         require(status(tokenId) == Status.Staged, "NotStaged");
         proposals[tokenId].staged = false;
     }
 
+    /// @inheritdoc IProposer
     function open(uint256 tokenId) external {
         if (_isApprovedOrOwner(msg.sender, tokenId))
             require(status(tokenId) == Status.Draft, "NotDraft");
@@ -210,6 +202,7 @@ contract Proposer is ERC721Permit {
         proposals[tokenId].finality = proposals[tokenId].end + window;
     }
 
+    /// @inheritdoc IProposer
     function close(uint256 tokenId) external {
         require(_isApprovedOrOwner(msg.sender, tokenId), "Unauthorized");
         require(
@@ -220,18 +213,15 @@ contract Proposer is ERC721Permit {
         proposals[tokenId].closed = true;
     }
 
+    /// @inheritdoc IProposer
     function done(uint256 tokenId) external {
         require(msg.sender == runtime, "Unauthorized");
         require(status(tokenId) == Status.Approved, "NotApproved");
         proposals[tokenId].merged = true;
     }
 
-    function attest(
-        uint256 tokenId,
-        uint8 support,
-        uint96 amount,
-        string memory comment
-    ) external {
+    /// @inheritdoc IProposer
+    function attest(uint256 tokenId, uint8 support, uint96 amount, string memory comment) external {
         if (!_exists(tokenId))
             revert UndefinedId(tokenId);
 
@@ -272,6 +262,7 @@ contract Proposer is ERC721Permit {
         emit Attest(msg.sender, tokenId, support, amount, comment);
     }
 
+    /// @inheritdoc IProposer
     function contest(uint256 tokenId) external {
         if (status(tokenId) != Status.Validation)
             revert StatusError(status(tokenId));
@@ -287,6 +278,7 @@ contract Proposer is ERC721Permit {
         proposals[tokenId].side = !proposals[tokenId].side;
     }
 
+    /// @inheritdoc IProposer
     function commit(uint256 tokenId, Header.Data calldata header) external {
         require(_isApprovedOrOwner(msg.sender, tokenId), "NotApprovedOrOwner");
         _commit(tokenId, header);
