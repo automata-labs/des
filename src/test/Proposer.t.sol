@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "ds-test/test.sol";
 
+import "../interfaces/IProposer.sol";
 import "../libraries/Status.sol";
 import "../Attest.sol";
 import "../Proposer.sol";
@@ -153,7 +154,7 @@ contract ProposerTest is DSTest, Vm {
 
     function testOpenWithThreshold() public {
         uint256 tokenId = setUpEmptyProposal(address(this));
-        proposer.set("threshold", abi.encode(1e18));
+        proposer.set(IProposer.threshold.selector, abi.encode(1e18));
         erc20.mint(address(this), 1e18);
         erc20.delegate(address(this));
 
@@ -165,7 +166,7 @@ contract ProposerTest is DSTest, Vm {
 
     function testOpenStaged() public {
         uint256 tokenId = setUpEmptyProposal(address(this));
-        proposer.set("threshold", abi.encode(1e18));
+        proposer.set(IProposer.threshold.selector, abi.encode(1e18));
         proposer.stage(tokenId);
         erc20.mint(address(user0), 1e18);
 
@@ -188,7 +189,7 @@ contract ProposerTest is DSTest, Vm {
 
     function testOpenInsufficientTokensRevert() public {
         uint256 tokenId = setUpEmptyProposal(address(this));
-        proposer.set("threshold", abi.encode(1e18));
+        proposer.set(IProposer.threshold.selector, abi.encode(1e18));
         proposer.stage(tokenId);
         erc20.mint(address(user0), 1e18 - 1);
 
