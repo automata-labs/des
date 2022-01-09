@@ -78,6 +78,11 @@ contract Proposer is IProposer, ERC721Permit {
     }
 
     /// @inheritdoc IProposer
+    function get(uint256 tokenId) external view returns (Proposal memory) {
+        return proposals[tokenId];
+    }
+
+    /// @inheritdoc IProposer
     function set(bytes4 selector, bytes memory data) external {
         if (selector == IProposer.threshold.selector)
             threshold = abi.decode(data, (uint128));
@@ -112,11 +117,6 @@ contract Proposer is IProposer, ERC721Permit {
     /// @inheritdoc IProposer
     function hashes(uint256 tokenId) external view returns (bytes32[] memory) {
         return proposals[tokenId].hash;
-    }
-
-    /// @inheritdoc IProposer
-    function proposal(uint256 tokenId) external view returns (Proposal memory) {
-        return proposals[tokenId];
     }
 
     /// @inheritdoc IProposer
@@ -246,7 +246,7 @@ contract Proposer is IProposer, ERC721Permit {
         if (!_exists(tokenId))
             revert UndefinedId(tokenId);
 
-        Proposal storage proposal_ = proposals[tokenId];
+        Proposal storage proposal = proposals[tokenId];
         Status status_ = status(tokenId);
 
         if (status_ == Status.Open) {
@@ -254,7 +254,7 @@ contract Proposer is IProposer, ERC721Permit {
                 revert InvalidChoice(support);
             }
         } else if (status_ == Status.Contesting) {
-            if (proposal_.side) {
+            if (proposal.side) {
                 if (support != 1 && support != 2) {
                     revert InvalidChoice(support);
                 }
@@ -267,16 +267,16 @@ contract Proposer is IProposer, ERC721Permit {
             revert StatusError(status_);
         }
 
-        uint160 weight = IAttest(token).weightIn(msg.sender, proposal_.start).u160();
+        uint160 weight = IAttest(token).weightIn(msg.sender, proposal.start).u160();
 
         if (amount > weight - attests[tokenId][msg.sender])
             revert AttestOverflow();
 
         if (support == 0)
-            proposal_.ack += amount;
+            proposal.ack += amount;
 
         if (support == 1)
-            proposal_.nack += amount;
+            proposal.nack += amount;
         
         attests[tokenId][msg.sender] += amount;
 
@@ -288,22 +288,27 @@ contract Proposer is IProposer, ERC721Permit {
         if (status(tokenId) != Status.Validation)
             revert StatusError(status(tokenId));
 
-        if (proposals[tokenId].side && proposals[tokenId].ack > proposals[tokenId].nack)
+        Proposal storage proposal = proposals[tokenId];
+
+        if (proposal.ack < quorum)
             revert ContestationFailed();
 
-        if (!proposals[tokenId].side && proposals[tokenId].nack > proposals[tokenId].ack)
+        if (proposal.side && proposal.ack > proposal.nack)
             revert ContestationFailed();
 
-        proposals[tokenId].trial = _blockNumber() + extension;
-        proposals[tokenId].finality = proposals[tokenId].trial + window;
-        proposals[tokenId].side = !proposals[tokenId].side;
+        if (!proposal.side && proposal.nack > proposal.ack)
+            revert ContestationFailed();
+
+        proposal.trial = _blockNumber() + extension;
+        proposal.finality = proposal.trial + window;
+        proposal.side = !proposal.side;
 
         emit Contest(
             msg.sender,
             tokenId,
-            proposals[tokenId].trial,
-            proposals[tokenId].finality,
-            proposals[tokenId].side
+            proposal.trial,
+            proposal.finality,
+            proposal.side
         );
     }
 

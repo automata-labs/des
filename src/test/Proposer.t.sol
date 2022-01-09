@@ -227,19 +227,19 @@ contract ProposerTest is DSTest, Vm {
         mine(proposer.delay());
 
         proposer.attest(tokenId, 0, 5e17, "");
-        assertEq(proposer.proposal(tokenId).ack, 5e17);
-        assertEq(proposer.proposal(tokenId).nack, 0);
+        assertEq(proposer.get(tokenId).ack, 5e17);
+        assertEq(proposer.get(tokenId).nack, 0);
         assertEq(proposer.attests(tokenId, address(this)), 5e17);
 
         proposer.attest(tokenId, 0, 3e18 + 5e17, "");
-        assertEq(proposer.proposal(tokenId).ack, 4e18);
-        assertEq(proposer.proposal(tokenId).nack, 0);
+        assertEq(proposer.get(tokenId).ack, 4e18);
+        assertEq(proposer.get(tokenId).nack, 0);
         assertEq(proposer.attests(tokenId, address(this)), 4e18);
 
         prank(address(user0));
         proposer.attest(tokenId, 0, 3e18, "");
-        assertEq(proposer.proposal(tokenId).ack, 7e18);
-        assertEq(proposer.proposal(tokenId).nack, 0);
+        assertEq(proposer.get(tokenId).ack, 7e18);
+        assertEq(proposer.get(tokenId).nack, 0);
         assertEq(proposer.attests(tokenId, address(user0)), 3e18);
     }
 
@@ -254,7 +254,7 @@ contract ProposerTest is DSTest, Vm {
         erc20.delegate(address(user0));
         prank(address(user1));
         erc20.delegate(address(this));
-        roll(proposer.proposal(tokenId).start);
+        roll(proposer.get(tokenId).start);
 
         // `attest` with 2e18 for ack
         proposer.attest(tokenId, 0, 1e18, "");
@@ -262,7 +262,7 @@ contract ProposerTest is DSTest, Vm {
         proposer.attest(tokenId, 0, 1e18, "");
 
         // roll to end and `contest`
-        roll(proposer.proposal(tokenId).end);
+        roll(proposer.get(tokenId).end);
         assertEq(uint(proposer.status(tokenId)), uint(Status.Validation));
         proposer.contest(tokenId);
         assertEq(uint(proposer.status(tokenId)), uint(Status.Contesting));
@@ -273,7 +273,7 @@ contract ProposerTest is DSTest, Vm {
         // should pass on nack attest
         proposer.attest(tokenId, 1, 1e18, "");
 
-        roll(proposer.proposal(tokenId).trial);
+        roll(proposer.get(tokenId).trial);
         // should revert because the contestation failed (2e18 ack vs 1e18 nack)
         expectRevert(abi.encodeWithSignature("ContestationFailed()"));
         proposer.contest(tokenId);
@@ -290,7 +290,7 @@ contract ProposerTest is DSTest, Vm {
         erc20.delegate(address(user0));
         prank(address(user1));
         erc20.delegate(address(user1));
-        roll(proposer.proposal(tokenId).start);
+        roll(proposer.get(tokenId).start);
 
         // `attest` with 2e18 for ack
         proposer.attest(tokenId, 0, 1e18, "");
@@ -298,7 +298,7 @@ contract ProposerTest is DSTest, Vm {
         proposer.attest(tokenId, 0, 1e18, "");
 
         // roll to end and `contest`
-        roll(proposer.proposal(tokenId).end);
+        roll(proposer.get(tokenId).end);
         proposer.contest(tokenId);
 
         // attest for nack, so that nack > ack
@@ -307,12 +307,12 @@ contract ProposerTest is DSTest, Vm {
         proposer.attest(tokenId, 1, 2e18, "");
 
         // should be 2e18 ack and 3e18 nack, and we can contest again
-        assertEq(proposer.proposal(tokenId).ack, 2e18);
-        assertEq(proposer.proposal(tokenId).nack, 3e18);
-        assert(proposer.proposal(tokenId).side == true);
-        roll(proposer.proposal(tokenId).trial);
+        assertEq(proposer.get(tokenId).ack, 2e18);
+        assertEq(proposer.get(tokenId).nack, 3e18);
+        assert(proposer.get(tokenId).side == true);
+        roll(proposer.get(tokenId).trial);
         proposer.contest(tokenId);
-        assert(proposer.proposal(tokenId).side == false);
+        assert(proposer.get(tokenId).side == false);
 
         // fail when trying to vote for nack during ack-time
         expectRevert(abi.encodeWithSignature("InvalidChoice(uint8)", uint8(1)));
@@ -322,11 +322,11 @@ contract ProposerTest is DSTest, Vm {
         proposer.attest(tokenId, 0, 1e18, "");
         prank(address(user1));
         proposer.attest(tokenId, 0, 1e18, "");
-        assertEq(proposer.proposal(tokenId).ack, 4e18);
-        assertEq(proposer.proposal(tokenId).nack, 3e18);
+        assertEq(proposer.get(tokenId).ack, 4e18);
+        assertEq(proposer.get(tokenId).nack, 3e18);
 
         // roll to finality and revert when contesting
-        roll(proposer.proposal(tokenId).finality);
+        roll(proposer.get(tokenId).finality);
         assertEq(uint(proposer.status(tokenId)), uint(Status.Queued));
         expectRevert(abi.encodeWithSignature("StatusError(uint8)", uint8(Status.Queued)));
         proposer.contest(tokenId);
@@ -356,7 +356,7 @@ contract ProposerTest is DSTest, Vm {
         proposer.attest(tokenId, 0, 0, "");
 
         // should pass, now open
-        roll(proposer.proposal(tokenId).start);
+        roll(proposer.get(tokenId).start);
         proposer.attest(tokenId, 0, 0, "");
     }
 

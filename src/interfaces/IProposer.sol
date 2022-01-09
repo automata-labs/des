@@ -138,14 +138,14 @@ interface IProposer {
     /// @notice The mapping of total amount of attests for each address.
     function attests(uint256 tokenId, address account) external view returns (uint256);
 
+    /// @notice Returns the proposal as a struct.
+    function get(uint256 tokenId) external view returns (Proposal memory);
+
     /// @notice The function to update contract parameters.
     function set(bytes4 selector, bytes memory data) external;
 
     /// @notice The next nft token id.
     function next() external view returns (uint256);
-
-    /// @notice Returns the proposal as a struct.
-    function proposal(uint256 tokenId) external view returns (Proposal memory);
 
     /// @notice Returns the block number when a proposal is executable.
     /// @dev The block number is inclusive.
