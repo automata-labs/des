@@ -5,6 +5,7 @@ import "./interfaces/IProposer.sol";
 import "./libraries/Cast.sol";
 import "./libraries/Checkpoint.sol";
 import "./libraries/ERC721Permit.sol";
+import "./libraries/Firewall.sol";
 import "./libraries/Header.sol";
 import "./libraries/Status.sol";
 
@@ -21,7 +22,7 @@ interface IAttest {
 
 /// @title Proposer
 /// @notice Tokenizes proposals as ERC721.
-contract Proposer is IProposer, ERC721Permit {
+contract Proposer is IProposer, ERC721Permit, Firewall {
     using Cast for uint256;
     using Header for Header.Data;
 
@@ -174,7 +175,7 @@ contract Proposer is IProposer, ERC721Permit {
     }
 
     /// @inheritdoc IProposer
-    function mint(address to, Header.Data calldata header) external returns (uint256 tokenId) {
+    function mint(address to, Header.Data calldata header) external auth returns (uint256 tokenId) {
         _mint(to, (tokenId = _nextId++));
         _commit(tokenId, header);
     }
@@ -233,8 +234,7 @@ contract Proposer is IProposer, ERC721Permit {
     }
 
     /// @inheritdoc IProposer
-    function done(uint256 tokenId) external {
-        require(msg.sender == runtime, "Unauthorized");
+    function done(uint256 tokenId) external auth {
         require(status(tokenId) == Status.Approved, "NotApproved");
         proposals[tokenId].merged = true;
 
