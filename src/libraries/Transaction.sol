@@ -10,6 +10,21 @@ library Transaction {
         string message;
     }
 
+    function calldatas(Transaction.Data memory self) internal pure returns (bytes[] memory) {
+        bytes[] memory datas = new bytes[](self.signatures.length);
+
+        for (uint256 i = 0; i < self.signatures.length; i++) {
+            datas[i] = abi.encodePacked(
+                // function selector
+                bytes4(keccak256(bytes(self.signatures[i]))),
+                // encoded arguments
+                self.datas[i]
+            );
+        }
+
+        return datas;
+    }
+
     function tree(Transaction.Data memory self) internal pure returns (bytes32) {
         bytes[] memory datas = new bytes[](self.signatures.length);
 

@@ -2,16 +2,21 @@
 pragma solidity ^0.8.0;
 
 import "./interfaces/IProposer.sol";
+import "./interfaces/IRuntime.sol";
 import "./libraries/Cast.sol";
 import "./libraries/Header.sol";
 import "./libraries/Firewall.sol";
 import "./libraries/Status.sol";
+import "./libraries/Transaction.sol";
 
 contract Registry is Firewall {
     using Cast for uint256;
+    using Transaction for Transaction.Data;
 
     error UnauthorizedNFT();
     error InvalidStatus();
+    error RunFailed();
+    error Premature();
 
     struct Item {
         address nft; // erc721 token address
@@ -66,13 +71,18 @@ contract Registry is Firewall {
         IProposer(registry[rid].nft).done(registry[rid].id);
     }
 
-    function run(
-        address[] calldata targets,
-        uint256[] calldata values,
-        string[] calldata signatures,
-        bytes[] calldata datas,
-        string calldata message,
-        bytes32 prevHash
-    ) external {
+    function run(Transaction.Data memory txn, bytes32 prevHash) external {
+        if (prevHash != bytes32(0) && instructions[prevHash] != 1)
+            revert RunFailed();
+
+        if (instructions[txn.hash(prevHash)] > _blockNumber())
+            revert Premature();
+        
+        IRuntime(runtime).execute(txn.targets, txn.values, txn.calldatas(), txn.message);
+        instructions[txn.hash(prevHash)] = 1;
+    }
+
+    function _blockNumber() internal view returns (uint32) {
+        return uint32(block.number);
     }
 }
